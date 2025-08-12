@@ -1,0 +1,8 @@
+target/
+**/*.rs.bk
+*.swd
+RECOVER_*.fla
+*.iml
+/.idea/
+/.vscode/
+.DS_Store
