@@ -296,9 +296,22 @@ mod tests {
         let observed = parser.parse_statement();
         assert_eq!(observed, "if (x > 0) { pos();\n} else if (x < 0) { neg();\n} else { zero();\n}");
     }
-
-
-
-
-
+    #[test]
+    fn function_declaration_without_parameters_test() {
+        let mut parser = Parser::new("func int func_name(){}");
+        let observed = parser.parse_function_declaration();
+        assert_eq!(observed, "int func_name()\n{ }");
+    }
+    #[test]
+    fn function_declaration_with_two_parameters_test() {
+        let mut parser = Parser::new("func int func_name(int a,int b){}");
+        let observed = parser.parse_function_declaration();
+        assert_eq!(observed, "int func_name(int a, int b)\n{ }");
+    }
+    #[test]
+    fn function_declaration_with_definition_test() {
+        let mut parser = Parser::new("func int func_name(int a,int b){int x = a+b;}");
+        let observed = parser.parse_function_declaration();
+        assert_eq!(observed, "int func_name(int a, int b)\n{ int x = a + b;\n}");
+    }
 }

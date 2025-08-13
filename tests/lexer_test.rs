@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::iter::zip;
     use wpl::lexer::{Lexer, Token, TokenType, Loc};
     const DEFAULT_LOC: Loc = Loc { line: 0, column: 0 };

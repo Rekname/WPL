@@ -116,6 +116,28 @@ impl<'source> Parser<'source> {
             None
         }
     }
+    fn read_c_type(&mut self) -> String {
+        let type_token = match self.next_token() {
+            Some(token) => token,
+            None => {
+                error!(
+                    self.current_location(),
+                    "Unexpected end of input while expecting type"
+                );
+                panic!();
+            }
+        };
+        self.get_c_type(type_token)
+    }
+    fn read_identifier(&mut self) -> String {
+        match self.read_and_expect_token_type(TokenType::Identifier("".to_string())) {
+            Some(token) => token.token_type.to_string(),
+            None => {
+                error!(self.current_location(), "Expected identifier");
+                panic!();
+            }
+        }
+    }
     fn skip_token(&mut self) {
         self.next_token();
     }
@@ -124,23 +146,10 @@ impl<'source> Parser<'source> {
         let mut c_type: String = "".to_string();
         loop {
             if c_type.is_empty() {
-                let token = match self.next_token() {
-                    Some(token) => token,
-                    None => {
-                        error!(self.current_location(), "Unexpected token");
-                        panic!();
-                    }
-                };
-                c_type = self.get_c_type(token);
+                c_type = self.read_c_type();
             }
 
-            let name = match self.read_and_expect_token_type(TokenType::Identifier("".to_string())) {
-                Some(token) => token.token_type.to_string(),
-                None => {
-                    error!(self.current_location(), "Expected identifier");
-                    panic!();
-                }
-            };
+            let name = self.read_identifier();
 
             self.add_symbol(name.to_string(), c_type.to_string());
             if declaration.is_empty() {
@@ -176,34 +185,40 @@ impl<'source> Parser<'source> {
         }
         self.skip_token();
 
-        let type_token = match self.next_token() {
-            Some(token) => token,
-            None => {
-                error!(
-                    self.current_location(),
-                    "Unexpected end of input while expecting type"
-                );
-                panic!();
-            }
-        };
-        let c_type = self.get_c_type(type_token);
+        let c_type = self.read_c_type();
+        let name = self.read_identifier();
 
-        let name = match self.read_and_expect_token_type(TokenType::Identifier("".to_string())) {
-            Some(token) => token.token_type.to_string(),
-            None => {
-                error!(
-                    self.current_location(),
-                    "Expected identifier for function name"
-                );
-                panic!();
+        self.begin_scope();
+        if self.peek_token().unwrap().token_type != TokenType::LeftParen {
+            error!(self.current_location(), "Expected ( symbol for declaration function parameters");
+            panic!();
+        }
+        let mut parameters = "(".to_string();
+        self.skip_token();
+        if !self.expect_token_type(TokenType::RightParen){
+            loop {
+                let c_type = self.read_c_type();
+                let name = self.read_identifier();
+                self.add_symbol(name.clone(), c_type.clone());
+                parameters.push_str(&format!("{} {}",c_type,name));
+                if self.expect_token_type(TokenType::Comma) {
+                    parameters.push_str(", ");
+                    self.skip_token();
+                    continue
+                }
+                if self.expect_token_type(TokenType::RightParen) {
+
+                    break
+                }
+                error!(self.current_location(), "Unexpected token");
             }
-        };
-        let parameters = self.parse_expression();
-        //TODO {} parse
-        let body = "".to_string();
+        }
+        parameters.push_str(")");
+        self.skip_token();
+        let body = self.parse_block();
         self.end_scope();
 
-        format!("{} {} {}\n{}", c_type, name, parameters, body)
+        format!("{} {}{}\n{}", c_type, name, parameters, body)
     }
     pub fn parse_expression(&mut self) -> String {
         self.parse_expression_assignment()
@@ -490,14 +505,19 @@ impl<'source> Parser<'source> {
         if self.expect_token_type(TokenType::For) {
             return self.parse_for();
         }
-
-        let mut expr = self.parse_expression();
-        if let None = self.read_and_expect_token_type(TokenType::SemiColon) {
+        if self.expect_token_type(TokenType::Func) {
+            return self.parse_function_declaration();
+        }
+        if self.expect_token_types(&[TokenType::Int,TokenType::Float,TokenType::String,TokenType::Char,TokenType::Bool]) {
+            return self.parse_variable_declaration();
+        }
+        let expr = self.parse_expression();
+        if let None = self.read_and_expect_token_type(TokenType::Semicolon) {
             error!(self.current_location(), "Expected ';' after expression, but found {}", self.peek_token().unwrap().token_type);
             panic!();
         }
 
-        return expr + ";";
+        expr + ";"
     }
 
     fn parse_while(&mut self) -> String {
@@ -533,13 +553,13 @@ impl<'source> Parser<'source> {
         }
         let init = self.parse_expression();
 
-        if let None = self.read_and_expect_token_type(TokenType::SemiColon) {
+        if let None = self.read_and_expect_token_type(TokenType::Semicolon) {
             error!(self.current_location(), "Expected ';' after for-init, but found {}", self.peek_token().unwrap().token_type);
         }
 
         let condition = self.parse_expression();
 
-        if let None = self.read_and_expect_token_type(TokenType::SemiColon) {
+        if let None = self.read_and_expect_token_type(TokenType::Semicolon) {
             error!(self.current_location(), "Expected ';' after for-condition, but found {}", self.peek_token().unwrap().token_type);
             panic!();
         }
