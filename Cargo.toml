@@ -4,4 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-logos = { git = "https://github.com/maciejhirsz/logos" } # from online repo
+logos = { git = "https://github.com/maciejhirsz/logos" }
+
+[lib]
+name = "wpl"
+path = "src/lib.rs"

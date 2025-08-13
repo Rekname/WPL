@@ -1,182 +1,43 @@
+use super::token::{Loc, Token, TokenType};
 use logos::Logos;
-use crate::lexer::TokenType::Whitespace;
 
-#[derive(Logos, Debug, PartialEq, Clone)]
-pub enum TokenType {
-    // Values
-    #[regex(r"[A-Za-z_][0-9A-Za-z_]*", |lex| Some(lex.slice().to_string()))]
-    Identifier(String),
-    #[regex(r"[+-]?[0-9]+", |lex| lex.slice().parse::<i64>().ok())]
-    IntLiteral(i64),
-    #[regex(r"[+-]?[0-9]+(?:\.[0-9]*)", |lex| lex.slice().parse::<f64>().ok())]
-    FloatLiteral(f64),
-    #[regex(r#"'([^'\\]|\\[nrt0'\\"])'"#, |lex| lex.slice().parse::<char>().ok())]
-    CharLiteral(char),
-    #[regex(r#""([^"\\]|\\[nrt0'\\"])*""#, |lex| Some(lex.slice().to_string()))]
-    StringLiteral(String),
-
-    // Punctuators
-    #[token("(")]
-    LeftParen,
-    #[token(")")]
-    RightParen,
-    #[token("{")]
-    LeftBrace,
-    #[token("}")]
-    RightBrace,
-    #[token("[")]
-    LeftBracket,
-    #[token("]")]
-    RightBracket,
-    #[token("?")]
-    Question,
-    #[token(":")]
-    Colon,
-    #[token(";")]
-    SemiColon,
-    #[token(",")]
-    Comma,
-
-    // Operators
-    #[token("*")]
-    Mul,
-    #[token("*=")]
-    MulEquals,
-    #[token("/")]
-    Div,
-    #[token("/=")]
-    DivEquals,
-    #[token("%")]
-    Mod,
-    #[token("%=")]
-    ModEquals,
-    #[token("+")]
-    Plus,
-    #[token("+=")]
-    PlusEquals,
-    #[token("++")]
-    PlusPlus,
-    #[token("-")]
-    Minus,
-    #[token("-=")]
-    MinusEquals,
-    #[token("--")]
-    MinusMinus,
-    #[token("<")]
-    Less,
-    #[token("<=")]
-    LessEquals,
-    #[token(">")]
-    Greater,
-    #[token(">=")]
-    GreaterEquals,
-    #[token("=")]
-    Equals,
-    #[token("==")]
-    EqualsEquals,
-    #[token("!")]
-    Not, // !
-    #[token("!=")]
-    NotEquals,
-    #[token("&")]
-    And,
-    #[token("&=")]
-    AndEquals,
-    #[token("&&")]
-    LogicalAnd,
-    #[token("|")]
-    Or,
-    #[token("|=")]
-    OrEquals,
-    #[token("||")]
-    LogicalOr,
-    #[token("^")]
-    Xor,
-    #[token("^=")]
-    XorEquals,
-    #[token("<<")]
-    ShiftLeft,
-    #[token("<<=")]
-    ShiftLeftEquals,
-    #[token(">>")]
-    ShiftRight,
-    #[token(">>=")]
-    ShiftRightEquals,
-    #[token(".")]
-    Dot,
-    #[token("->")]
-    Arrow, // ->
-
-    // Keywords
-    #[token("func")]
-    Func,
-    #[token("if")]
-    If,
-    #[token("else")]
-    Else,
-    #[token("for")]
-    For,
-    #[token("while")]
-    While,
-    #[token("break")]
-    Break,
-    #[token("continue")]
-    Continue,
-    #[token("return")]
-    Return,
-    #[token("int")]
-    Int,
-    #[token("float")]
-    Float,
-    #[token("bool")]
-    Bool,
-    #[token("char")]
-    Char,
-    #[token("string")]
-    String,
-    #[token("void")]
-    Void,
-    #[token("true")]
-    True,
-    #[token("false")]
-    False,
-
-    #[regex(r"[ \t\r\n]+")]
-    Whitespace,
-    #[regex(r"//[^\r\n]*", logos::skip)]
-    #[regex(r"/\*[^*]*\*+(?:[^/*][^*]*\*+)*/", logos::skip)]
-    Comment
+#[macro_export]
+macro_rules! error {
+    ($loc:expr, $($args:tt)*) => {{
+        eprintln!("{}:{}: {}", $loc.line, $loc.column, format!($($args)*));
+    }};
 }
+
 #[derive(Debug, Clone)]
-pub struct Loc {
-    pub line: usize,
-    pub column: usize,
-}
-#[derive(Debug, Clone)]
-pub struct Token {
-    pub token_type: TokenType,
-    pub loc: Loc
+pub struct Lexer<'source> {
+    source: logos::Lexer<'source, TokenType>,
+    next_token: Option<Result<TokenType, ()>>,
+    pub current_location: Loc,
 }
 
-impl PartialEq for Token {
-    fn eq(&self, other: &Self) -> bool {
-        self.token_type == other.token_type
-    }
-}
-pub struct Lexer<'a> {
-    source: logos::Lexer<'a, TokenType>,
-    current_location: Loc,
-}
-
-impl<'a> Lexer<'a> {
-    pub fn new(source: &'a str) -> Self {
+impl<'source> Lexer<'source> {
+    pub fn new(source: &'source str) -> Self {
+        let mut lexer = TokenType::lexer(source);
+        let next = None;
         Self {
-            source: TokenType::lexer(source),
+            source: lexer,
+            next_token: next,
             current_location: Loc { line: 1, column: 1 },
         }
     }
+    pub fn peek(&self) -> Option<TokenType> {
+        let mut fork = self.source.clone();
+        loop {
+            match fork.next()? {
+                Ok(t) if t != TokenType::Whitespace => return Some(t),
+                Ok(_) => continue,
+                Err(_) => return None,
+            }
+        }
+    }
 }
-impl<'a> Iterator for Lexer<'a> {
+
+impl<'source> Iterator for Lexer<'source> {
     type Item = Token;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -184,11 +45,12 @@ impl<'a> Iterator for Lexer<'a> {
 
         let token_str = self.source.slice();
 
+
         match token_type {
-            Ok(token_type) =>{
+            Ok(token_type) => {
                 let result_token = Token {
                     token_type: token_type,
-                    loc: self.current_location.clone()
+                    loc: self.current_location.clone(),
                 };
                 for c in token_str.chars() {
                     if c == '\n' {
@@ -198,14 +60,14 @@ impl<'a> Iterator for Lexer<'a> {
                         self.current_location.column += 1;
                     }
                 }
-                if result_token.token_type == Whitespace {
+                if result_token.token_type == TokenType::Whitespace {
                     return self.next();
                 }
                 Some(result_token)
             }
-            Err(error) => {
+            Err(_) => {
                 //TODO errors
-                println!("{:?}", error);
+                error!(self.current_location, "LEXER ERROR {}", token_type.unwrap());
                 None
             }
         }
