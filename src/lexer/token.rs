@@ -1,5 +1,5 @@
-use std::cmp::PartialEq;
 use logos::Logos;
+use std::cmp::PartialEq;
 use std::fmt;
 
 #[derive(Logos, Debug, Clone, PartialEq)]
@@ -11,7 +11,22 @@ pub enum TokenType {
     IntLiteral(i64),
     #[regex(r"[+-]?[0-9]+(?:\.[0-9]*)", |lex| lex.slice().parse::<f64>().ok())]
     FloatLiteral(f64),
-    #[regex(r#"'([^'\\]|\\[nrt0'\\"])'"#, |lex| lex.slice().parse::<char>().ok())]
+    #[regex(r#"'([^'\\]|\\[nrt0'"\\])'"#, |lex| {
+    let slice = &lex.slice()[1..lex.slice().len()-1];
+    if slice.starts_with('\\') {
+        match slice {
+            r"\n" => Some('\n'),
+            r"\r" => Some('\r'),
+            r"\t" => Some('\t'),
+            r"\0" => Some('\0'),
+            r"\'" => Some('\''),
+            r#"\""# => Some('"'),
+            r"\\" => Some('\\'),
+            _ => None,
+        }
+    } else {
+    slice.chars().next()
+    }})]
     CharLiteral(char),
     #[regex(r#""([^"\\]|\\[nrt0'\\"])*""#, |lex| Some(lex.slice().to_string()))]
     StringLiteral(String),
@@ -156,7 +171,7 @@ pub struct Loc {
 #[derive(Debug, Clone)]
 pub struct Token {
     pub token_type: TokenType,
-    pub loc: Loc
+    pub loc: Loc,
 }
 
 impl PartialEq for Token {
@@ -165,82 +180,80 @@ impl PartialEq for Token {
     }
 }
 
-
-
 impl fmt::Display for TokenType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            TokenType::Identifier(s)   => write!(f, "{}", s),
-            TokenType::IntLiteral(i)   => write!(f, "{}", i),
+            TokenType::Identifier(s) => write!(f, "{}", s),
+            TokenType::IntLiteral(i) => write!(f, "{}", i),
             TokenType::FloatLiteral(n) => write!(f, "{}", n),
-            TokenType::CharLiteral(c)  => write!(f, "{}", c),
+            TokenType::CharLiteral(c) => write!(f, "{}", c),
             TokenType::StringLiteral(s) => write!(f, "{}", s),
 
-            TokenType::LeftParen    => write!(f, "("),
-            TokenType::RightParen   => write!(f, ")"),
-            TokenType::LeftBrace    => write!(f, "{{"),
-            TokenType::RightBrace   => write!(f, "}}"),
-            TokenType::LeftBracket  => write!(f, "["),
+            TokenType::LeftParen => write!(f, "("),
+            TokenType::RightParen => write!(f, ")"),
+            TokenType::LeftBrace => write!(f, "{{"),
+            TokenType::RightBrace => write!(f, "}}"),
+            TokenType::LeftBracket => write!(f, "["),
             TokenType::RightBracket => write!(f, "]"),
-            TokenType::Question     => write!(f, "?"),
-            TokenType::Colon        => write!(f, ":"),
-            TokenType::SemiColon    => write!(f, ";"),
-            TokenType::Comma        => write!(f, ","),
+            TokenType::Question => write!(f, "?"),
+            TokenType::Colon => write!(f, ":"),
+            TokenType::SemiColon => write!(f, ";"),
+            TokenType::Comma => write!(f, ","),
 
-            TokenType::Mul            => write!(f, "*"),
-            TokenType::MulEquals      => write!(f, "*="),
-            TokenType::Div            => write!(f, "/"),
-            TokenType::DivEquals      => write!(f, "/="),
-            TokenType::Mod            => write!(f, "%"),
-            TokenType::ModEquals      => write!(f, "%="),
-            TokenType::Plus           => write!(f, "+"),
-            TokenType::PlusEquals     => write!(f, "+="),
-            TokenType::PlusPlus       => write!(f, "++"),
-            TokenType::Minus          => write!(f, "-"),
-            TokenType::MinusEquals    => write!(f, "-="),
-            TokenType::MinusMinus     => write!(f, "--"),
-            TokenType::Less           => write!(f, "<"),
-            TokenType::LessEquals     => write!(f, "<="),
-            TokenType::Greater        => write!(f, ">"),
-            TokenType::GreaterEquals  => write!(f, ">="),
-            TokenType::Equals         => write!(f, "="),
-            TokenType::EqualsEquals   => write!(f, "=="),
-            TokenType::Not            => write!(f, "!"),
-            TokenType::NotEquals      => write!(f, "!="),
-            TokenType::And            => write!(f, "&"),
-            TokenType::AndEquals      => write!(f, "&="),
-            TokenType::LogicalAnd     => write!(f, "&&"),
-            TokenType::Or             => write!(f, "|"),
-            TokenType::OrEquals       => write!(f, "|="),
-            TokenType::LogicalOr      => write!(f, "||"),
-            TokenType::Xor            => write!(f, "^"),
-            TokenType::XorEquals      => write!(f, "^="),
-            TokenType::ShiftLeft      => write!(f, "<<"),
+            TokenType::Mul => write!(f, "*"),
+            TokenType::MulEquals => write!(f, "*="),
+            TokenType::Div => write!(f, "/"),
+            TokenType::DivEquals => write!(f, "/="),
+            TokenType::Mod => write!(f, "%"),
+            TokenType::ModEquals => write!(f, "%="),
+            TokenType::Plus => write!(f, "+"),
+            TokenType::PlusEquals => write!(f, "+="),
+            TokenType::PlusPlus => write!(f, "++"),
+            TokenType::Minus => write!(f, "-"),
+            TokenType::MinusEquals => write!(f, "-="),
+            TokenType::MinusMinus => write!(f, "--"),
+            TokenType::Less => write!(f, "<"),
+            TokenType::LessEquals => write!(f, "<="),
+            TokenType::Greater => write!(f, ">"),
+            TokenType::GreaterEquals => write!(f, ">="),
+            TokenType::Equals => write!(f, "="),
+            TokenType::EqualsEquals => write!(f, "=="),
+            TokenType::Not => write!(f, "!"),
+            TokenType::NotEquals => write!(f, "!="),
+            TokenType::And => write!(f, "&"),
+            TokenType::AndEquals => write!(f, "&="),
+            TokenType::LogicalAnd => write!(f, "&&"),
+            TokenType::Or => write!(f, "|"),
+            TokenType::OrEquals => write!(f, "|="),
+            TokenType::LogicalOr => write!(f, "||"),
+            TokenType::Xor => write!(f, "^"),
+            TokenType::XorEquals => write!(f, "^="),
+            TokenType::ShiftLeft => write!(f, "<<"),
             TokenType::ShiftLeftEquals => write!(f, "<<="),
-            TokenType::ShiftRight     => write!(f, ">>"),
+            TokenType::ShiftRight => write!(f, ">>"),
             TokenType::ShiftRightEquals => write!(f, ">>="),
-            TokenType::Dot            => write!(f, "."),
-            TokenType::Arrow          => write!(f, "->"),
+            TokenType::Dot => write!(f, "."),
+            TokenType::Arrow => write!(f, "->"),
 
-            TokenType::Func     => write!(f, "func"),
-            TokenType::If       => write!(f, "if"),
-            TokenType::Else     => write!(f, "else"),
-            TokenType::For      => write!(f, "for"),
-            TokenType::While    => write!(f, "while"),
-            TokenType::Break    => write!(f, "break"),
+            TokenType::Func => write!(f, "func"),
+            TokenType::If => write!(f, "if"),
+            TokenType::Else => write!(f, "else"),
+            TokenType::For => write!(f, "for"),
+            TokenType::While => write!(f, "while"),
+            TokenType::Break => write!(f, "break"),
             TokenType::Continue => write!(f, "continue"),
-            TokenType::Return   => write!(f, "return"),
-            TokenType::Int      => write!(f, "int"),
-            TokenType::Float    => write!(f, "float"),
-            TokenType::Bool     => write!(f, "bool"),
-            TokenType::Char     => write!(f, "char"),
-            TokenType::String   => write!(f, "string"),
-            TokenType::Void     => write!(f, "void"),
-            TokenType::True     => write!(f, "true"),
-            TokenType::False    => write!(f, "false"),
+            TokenType::Return => write!(f, "return"),
+            TokenType::Int => write!(f, "int"),
+            TokenType::Float => write!(f, "float"),
+            TokenType::Bool => write!(f, "bool"),
+            TokenType::Char => write!(f, "char"),
+            TokenType::String => write!(f, "string"),
+            TokenType::Void => write!(f, "void"),
+            TokenType::True => write!(f, "true"),
+            TokenType::False => write!(f, "false"),
 
             TokenType::Whitespace => write!(f, "whitespace"),
-            TokenType::Comment    => write!(f, "comment"),
+            TokenType::Comment => write!(f, "comment"),
         }
     }
 }

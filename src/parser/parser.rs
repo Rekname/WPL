@@ -1,23 +1,37 @@
 use crate::error;
+use crate::lexer::Loc;
 use crate::lexer::lexer::Lexer;
 use crate::lexer::{Token, TokenType};
 use std::collections::{HashMap, VecDeque};
+use std::iter::Peekable;
 
 pub struct Parser<'source> {
-    lexer: Lexer<'source>,
+    lexer: Peekable<Lexer<'source>>,
     generated_code: String,
     symbol_tables: VecDeque<HashMap<String, String>>,
 }
 
 impl<'source> Parser<'source> {
-    pub fn new(lex: Lexer<'source>) -> Self {
+    pub fn new(source: &'source str) -> Self {
         let mut parser = Self {
-            lexer: lex,
+            lexer: Lexer::new(source).peekable(),
             generated_code: String::new(),
             symbol_tables: VecDeque::new(),
         };
         parser.begin_scope();
         parser
+    }
+    fn peek_token(&mut self) -> Option<&Token> {
+        self.lexer.peek()
+    }
+    fn next_token(&mut self) -> Option<Token> {
+        self.lexer.next()
+    }
+    fn current_location(&mut self) -> Loc {
+        match self.peek_token() {
+            Some(token) => token.loc.clone(),
+            None => Loc { line: 1, column: 1 },
+        }
     }
     fn begin_scope(&mut self) {
         self.symbol_tables.push_back(HashMap::new());
@@ -60,14 +74,14 @@ impl<'source> Parser<'source> {
 
     fn expect_token_type(&mut self, expected: TokenType) -> bool {
         if let Some(token) = self.lexer.peek() {
-            token == expected
+            token.token_type == expected
         } else {
             false
         }
     }
     fn expect_token_types(&mut self, expected: &[TokenType]) -> bool {
         if let Some(token_type) = self.lexer.peek() {
-            expected.contains(&token_type)
+            expected.contains(&token_type.token_type)
         } else {
             false
         }
@@ -226,7 +240,7 @@ impl<'source> Parser<'source> {
 
         loop {
             if let Some(op) =
-                self.read_and_expect_token_types(&[TokenType::Mul, TokenType::Div, TokenType::Div])
+                self.read_and_expect_token_types(&[TokenType::Mul, TokenType::Div, TokenType::Mod])
             {
                 let right = self.parse_expression_unary();
                 left = format!("{} {} {}", left, op.token_type, right);
@@ -275,7 +289,7 @@ impl<'source> Parser<'source> {
 
                 if !self.expect_token_type(TokenType::RightParen) {
                     error!(
-                        self.lexer.current_location,
+                        self.current_location(),
                         "Expected ')' after function arguments"
                     );
                     panic!();
@@ -287,7 +301,7 @@ impl<'source> Parser<'source> {
                 let index = self.parse_expression();
                 if !self.expect_token_type(TokenType::RightBracket) {
                     error!(
-                        self.lexer.current_location,
+                        self.current_location(),
                         "Expected ']' after array index operation"
                     );
                 }
@@ -328,7 +342,7 @@ impl<'source> Parser<'source> {
 
                 _ => {
                     error!(
-                        self.lexer.current_location,
+                        self.current_location(),
                         "Unexpected token in expression {}", token.token_type
                     );
                     panic!();
@@ -336,7 +350,7 @@ impl<'source> Parser<'source> {
             }
         } else {
             error!(
-                self.lexer.current_location,
+                self.current_location(),
                 "Unexpected end of input in expression"
             );
             panic!();
