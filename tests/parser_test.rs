@@ -203,4 +203,73 @@ mod tests {
         let mut parser = Parser::new("++");
         parser.parse_expression();
     }
+
+    #[test]
+    fn simple_for_loop() {
+        let mut parser = Parser::new("for (i = 0; i < 10; i++) {\n x += i; }");
+        let observed = parser.parse_statement();
+        assert_eq!(observed, "for (i = 0; i < 10; i++) { x += i;\n}");
+    }
+    #[test]
+    fn complex_control_flow() {
+        let mut parser = Parser::new(
+            "for (i=0;i<10;i++) {
+                if (i%2==0) {
+                    even();
+                } else {
+                    while (x-- > 0) {
+                        odd();
+                    }
+                }
+            }"
+        );
+        let observed = parser.parse_statement();
+        assert_eq!(
+            observed,
+            "for (i = 0; i < 10; i++) { if (i % 2 == 0) { even();\n} else { while (x-- > 0) { odd();\n}\n}\n}"
+        );
+    }
+
+    #[test]
+    fn simple_while_loop() {
+        let mut parser = Parser::new("while (x < 10) { x++; }");
+        let observed = parser.parse_statement();
+        assert_eq!(observed, "while (x < 10) { x++;\n}");
+    }
+    #[test]
+    fn nested_for_loops() {
+        let mut parser = Parser::new("for (i=0;i<10;i++) { for (j=0;j<10;j++) { x += i*j; } }");
+        let observed = parser.parse_statement();
+        assert_eq!(observed, "for (i = 0; i < 10; i++) { for (j = 0; j < 10; j++) { x += i * j;\n}\n}");
+    }
+    #[test]
+    fn while_with_complex_condition() {
+        let mut parser = Parser::new("while (x < 10 && y > 0 || !done) { process(); }");
+        let observed = parser.parse_statement();
+        assert_eq!(observed, "while (x < 10 && y > 0 || !done) { process();\n}");
+    }
+
+    #[test]
+    fn simple_if_statement() {
+        let mut parser = Parser::new("if (x > 0) { do_something(x); }");
+        let observed = parser.parse_statement();
+        assert_eq!(observed, "if (x > 0) { do_something(x);\n} ");
+    }
+    #[test]
+    fn if_with_else() {
+        let mut parser = Parser::new("if (x > 0) { pos(); } else { neg(); }");
+        let observed = parser.parse_statement();
+        assert_eq!(observed, "if (x > 0) { pos();\n} else { neg();\n}");
+    }
+    #[test]
+    fn if_else_if_chain() {
+        let mut parser = Parser::new("if (x > 0) { pos(); } else if (x < 0) { neg(); } else { zero(); }");
+        let observed = parser.parse_statement();
+        assert_eq!(observed, "if (x > 0) { pos();\n} else if (x < 0) { neg();\n} else { zero();\n}");
+    }
+
+
+
+
+
 }

@@ -1,6 +1,6 @@
 use crate::error;
-use crate::lexer::Loc;
 use crate::lexer::lexer::Lexer;
+use crate::lexer::Loc;
 use crate::lexer::{Token, TokenType};
 use std::collections::{HashMap, VecDeque};
 use std::iter::Peekable;
@@ -356,4 +356,149 @@ impl<'source> Parser<'source> {
             panic!();
         }
     }
+
+    fn parse_block(&mut self) -> String {
+        if let None = self.read_and_expect_token_type(TokenType::LeftBrace) {
+            error!(self.current_location(), "Expected `{{` to start block, but found {}", self.peek_token().unwrap().token_type);
+            panic!();
+        }
+        self.begin_scope();
+        let mut body = String::new();
+        while !self.expect_token_type(TokenType::RightBrace) {
+            body += &*(self.parse_statement() + "\n");
+        }
+        if let None = self.read_and_expect_token_type(TokenType::RightBrace) {
+            error!(self.current_location(), "Expected `}}` to end block, but found {}", self.peek_token().unwrap().token_type);
+            panic!();
+        }
+        self.end_scope();
+        format!("{{ {}}}", body)
+
+    }
+
+    pub fn parse_statement(&mut self) -> String {
+        if self.expect_token_type(TokenType::LeftBrace) {
+            return self.parse_block();
+        }
+        if self.expect_token_type(TokenType::If) {
+            return self.parse_if();
+        }
+        if self.expect_token_type(TokenType::While) {
+            return self.parse_while();
+        }
+        if self.expect_token_type(TokenType::For) {
+            return self.parse_for();
+        }
+
+        let mut expr = self.parse_expression();
+        if let None = self.read_and_expect_token_type(TokenType::SemiColon) {
+            error!(self.current_location(), "Expected ';' after expression, but found {}", self.peek_token().unwrap().token_type);
+            panic!();
+        }
+
+        return expr + ";";
+    }
+
+    fn parse_while(&mut self) -> String {
+        if let None = self.read_and_expect_token_type(TokenType::While) {
+            error!(self.current_location(), "Expected `while`, but found {}", self.peek_token().unwrap().token_type);
+            panic!();
+        }
+        if let None = self.read_and_expect_token_type(TokenType::LeftParen) {
+            error!(self.current_location(), "Expected `(` after `while`, but found {}", self.peek_token().unwrap().token_type);
+            panic!();
+        }
+
+        let condition = self.parse_expression();
+
+
+        if let None = self.read_and_expect_token_type(TokenType::RightParen) {
+            error!(self.current_location(), "Expected `)` after condition in `while`, but found {}" , self.peek_token().unwrap().token_type);
+            panic!();
+        }
+
+        let body = self.parse_statement();
+
+        format!("while ({}) {}", condition, body)
+
+
+    }
+    fn parse_for(&mut self) -> String {
+        if let None = self.read_and_expect_token_type(TokenType::For) {
+            error!(self.current_location(), "Expected `for`, but found {}", self.peek_token().unwrap().token_type);
+        }
+        if let None = self.read_and_expect_token_type(TokenType::LeftParen) {
+            error!(self.current_location(), "Expected `(` after `for`, but found {}", self.peek_token().unwrap().token_type);
+        }
+        let init = self.parse_expression();
+
+        if let None = self.read_and_expect_token_type(TokenType::SemiColon) {
+            error!(self.current_location(), "Expected ';' after for-init, but found {}", self.peek_token().unwrap().token_type);
+        }
+
+        let condition = self.parse_expression();
+
+        if let None = self.read_and_expect_token_type(TokenType::SemiColon) {
+            error!(self.current_location(), "Expected ';' after for-condition, but found {}", self.peek_token().unwrap().token_type);
+            panic!();
+        }
+
+        let increment = self.parse_expression();
+
+
+        if let None = self.read_and_expect_token_type(TokenType::RightParen) {
+            error!(self.current_location(), "Expected ')' after for-increment, but found {}", self.peek_token().unwrap().token_type);
+            panic!();
+        }
+
+
+
+        let body = self.parse_statement();
+
+        format!("for ({}; {}; {}) {}", init, condition, increment, body)
+
+
+    }
+
+
+    fn parse_if(&mut self) -> String {
+        if let None = self.read_and_expect_token_type(TokenType::If) {
+            error!(self.current_location(), "Expected `if`, but found {}", self.peek_token().unwrap().token_type);
+            panic!();
+        }
+        if let None = self.read_and_expect_token_type(TokenType::LeftParen) {
+            error!(self.current_location(), "Expected `(` after `if`, but found {}", self.peek_token().unwrap().token_type);
+            panic!();
+        }
+
+        let condition = self.parse_expression();
+
+        if let None = self.read_and_expect_token_type(TokenType::RightParen) {
+            error!(self.current_location(), "Expected `)` after condition, but found {}", self.peek_token().unwrap().token_type);
+            panic!();
+        }
+
+        let then = self.parse_statement();
+
+        let mut else_ = String::new();
+
+        if self.expect_token_type(TokenType::Else) {
+            else_ = self.parse_else();
+        }
+        format!("if ({}) {} {}", condition, then, else_)
+
+    }
+    fn parse_else(&mut self) -> String {
+        if let None = self.read_and_expect_token_type(TokenType::Else) {
+            error!(self.current_location(), "Expected `else`, but found {}", self.peek_token().unwrap().token_type);
+            panic!();
+        }
+        if self.expect_token_type(TokenType::If) {
+            return format!("else {}", self.parse_if())
+        }
+        format!("else {}", self.parse_statement())
+
+    }
 }
+
+
