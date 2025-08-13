@@ -177,6 +177,35 @@ mod tests {
     }
 
     #[test]
+    fn variable_declaration_test() {
+        let mut parser = Parser::new("int x = 1;");
+        let observed = parser.parse_variable_declaration();
+        assert_eq!(observed, "int x = 1;");
+    }
+
+    #[test]
+    fn multi_variable_declaration_test() {
+        let mut parser = Parser::new("float x = 1.5,y=-2.3 ,  z = 1.0;");
+        let observed = parser.parse_variable_declaration();
+        assert_eq!(observed, "float x = 1.5, y = -2.3, z = 1;");
+    }
+
+    #[test]
+    #[should_panic]
+    fn variable_declaration_without_semicolon_test() {
+        let mut parser = Parser::new("float x = 1.5,y=-2.3 ,  z = 1.0");
+        let observed = parser.parse_variable_declaration();
+        assert_eq!(observed, "float x = 1.5, y = -2.3, z = 1;");
+    }
+    #[test]
+    #[should_panic]
+    fn variable_declaration_without_comma_test() {
+        let mut parser = Parser::new("float x = 1.5 y=2.3");
+        let observed = parser.parse_variable_declaration();
+        assert_eq!(observed, "float x = 1.5, y = 2.3;");
+    }
+
+    #[test]
     #[should_panic]
     fn unmatched_parenthesis_error() {
         let mut parser = Parser::new(")");

@@ -11,17 +11,14 @@ macro_rules! error {
 #[derive(Debug, Clone)]
 pub struct Lexer<'source> {
     source: logos::Lexer<'source, TokenType>,
-    next_token: Option<Result<TokenType, ()>>,
     pub current_location: Loc,
 }
 
 impl<'source> Lexer<'source> {
     pub fn new(source: &'source str) -> Self {
-        let mut lexer = TokenType::lexer(source);
-        let next = None;
+        let lexer = TokenType::lexer(source);
         Self {
             source: lexer,
-            next_token: next,
             current_location: Loc { line: 1, column: 1 },
         }
     }

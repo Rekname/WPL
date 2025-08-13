@@ -45,7 +45,7 @@ impl<'source> Parser<'source> {
             current_scope.insert(name, type_);
         }
     }
-    fn get_c_type(token: Token) -> String {
+    fn get_c_type(&mut self, token: Token) -> String {
         match token.token_type {
             TokenType::Int => "int".to_string(),
             TokenType::Float => "float".to_string(),
@@ -74,6 +74,21 @@ impl<'source> Parser<'source> {
 
     fn expect_token_type(&mut self, expected: TokenType) -> bool {
         if let Some(token) = self.lexer.peek() {
+            if matches!(token.token_type, TokenType::Identifier(_)) && matches!(expected, TokenType::Identifier(_)){
+                return true;
+            }
+            if matches!(token.token_type, TokenType::IntLiteral(_)) && matches!(expected, TokenType::IntLiteral(_)){
+                return true;
+            }
+            if matches!(token.token_type, TokenType::FloatLiteral(_)) && matches!(expected, TokenType::FloatLiteral(_)){
+                return true;
+            }
+            if matches!(token.token_type, TokenType::CharLiteral(_)) && matches!(expected, TokenType::CharLiteral(_)){
+                return true;
+            }
+            if matches!(token.token_type, TokenType::StringLiteral(_)) && matches!(expected, TokenType::StringLiteral(_)){
+                return true;
+            }
             token.token_type == expected
         } else {
             false
@@ -89,20 +104,106 @@ impl<'source> Parser<'source> {
 
     fn read_and_expect_token_types(&mut self, expected: &[TokenType]) -> Option<Token> {
         if self.expect_token_types(expected) {
-            self.lexer.next()
+            self.next_token()
         } else {
             None
         }
     }
     fn read_and_expect_token_type(&mut self, expected: TokenType) -> Option<Token> {
         if self.expect_token_type(expected) {
-            self.lexer.next()
+            self.next_token()
         } else {
             None
         }
     }
     fn skip_token(&mut self) {
-        self.lexer.next();
+        self.next_token();
+    }
+    pub fn parse_variable_declaration(&mut self) -> String {
+        let mut declaration = "".to_string();
+        let mut c_type: String = "".to_string();
+        loop {
+            if c_type.is_empty() {
+                let token = match self.next_token() {
+                    Some(token) => token,
+                    None => {
+                        error!(self.current_location(), "Unexpected token");
+                        panic!();
+                    }
+                };
+                c_type = self.get_c_type(token);
+            }
+
+            let name = match self.read_and_expect_token_type(TokenType::Identifier("".to_string())) {
+                Some(token) => token.token_type.to_string(),
+                None => {
+                    error!(self.current_location(), "Expected identifier");
+                    panic!();
+                }
+            };
+
+            self.add_symbol(name.to_string(), c_type.to_string());
+            if declaration.is_empty() {
+                declaration.push_str(&format!("{} {}", c_type, name));
+            }
+            else{
+                declaration.push_str(&format!(" {}", name));
+            }
+
+            if let Some(_) = self.read_and_expect_token_type(TokenType::Equals) {
+                let init_expr = self.parse_expression();
+                //TODO check types
+                declaration.push_str(&format!(" = {}", init_expr));
+            }
+            if self.expect_token_type(TokenType::Comma) {
+                declaration.push_str(",");
+                self.skip_token();
+                continue;
+            }
+            if self.expect_token_type(TokenType::Semicolon) {
+                declaration.push_str(";");
+                self.skip_token();
+                break;
+            }
+            error!(self.current_location(), "Unexpected token");
+        }
+        declaration
+    }
+    pub fn parse_function_declaration(&mut self) -> String {
+        if self.peek_token().unwrap().token_type != TokenType::Func {
+            error!(self.current_location(), "Expected keyword func");
+            panic!();
+        }
+        self.skip_token();
+
+        let type_token = match self.next_token() {
+            Some(token) => token,
+            None => {
+                error!(
+                    self.current_location(),
+                    "Unexpected end of input while expecting type"
+                );
+                panic!();
+            }
+        };
+        let c_type = self.get_c_type(type_token);
+
+        let name = match self.read_and_expect_token_type(TokenType::Identifier("".to_string())) {
+            Some(token) => token.token_type.to_string(),
+            None => {
+                error!(
+                    self.current_location(),
+                    "Expected identifier for function name"
+                );
+                panic!();
+            }
+        };
+        let parameters = self.parse_expression();
+        //TODO {} parse
+        let body = "".to_string();
+        self.end_scope();
+
+        format!("{} {} {}\n{}", c_type, name, parameters, body)
     }
     pub fn parse_expression(&mut self) -> String {
         self.parse_expression_assignment()
@@ -326,7 +427,7 @@ impl<'source> Parser<'source> {
             return format!("({})", expr);
         }
 
-        if let Some(token) = self.lexer.next() {
+        if let Some(token) = self.next_token() {
             match token.token_type {
                 TokenType::IntLiteral(_)
                 | TokenType::FloatLiteral(_)
