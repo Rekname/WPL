@@ -94,7 +94,7 @@ mod tests {
                 loc: DEFAULT_LOC,
             },
             Token {
-                token_type: TokenType::SemiColon,
+                token_type: TokenType::Semicolon,
                 loc: DEFAULT_LOC,
             },
             Token {
@@ -331,7 +331,7 @@ mod tests {
                 loc: DEFAULT_LOC,
             },
             Token {
-                token_type: TokenType::SemiColon,
+                token_type: TokenType::Semicolon,
                 loc: DEFAULT_LOC,
             },
             Token {
@@ -347,7 +347,7 @@ mod tests {
                 loc: DEFAULT_LOC,
             },
             Token {
-                token_type: TokenType::SemiColon,
+                token_type: TokenType::Semicolon,
                 loc: DEFAULT_LOC,
             },
         ];
@@ -432,7 +432,7 @@ mod tests {
                 },
             },
             Token {
-                token_type: TokenType::SemiColon,
+                token_type: TokenType::Semicolon,
                 loc: Loc {
                     line: 5,
                     column: 21,

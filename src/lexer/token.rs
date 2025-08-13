@@ -49,7 +49,7 @@ pub enum TokenType {
     #[token(":")]
     Colon,
     #[token(";")]
-    SemiColon,
+    Semicolon,
     #[token(",")]
     Comma,
 
@@ -173,7 +173,23 @@ pub struct Token {
     pub token_type: TokenType,
     pub loc: Loc,
 }
-
+impl Token {
+    pub fn is_identifier(&self) -> bool {
+        matches!(self.token_type, TokenType::Identifier(_))
+    }
+    pub fn is_string_literal(&self) -> bool {
+        matches!(self.token_type, TokenType::StringLiteral(_))
+    }
+    pub fn is_char_literal(&self) -> bool {
+        matches!(self.token_type, TokenType::CharLiteral(_))
+    }
+    pub fn is_int_literal(&self) -> bool {
+        matches!(self.token_type, TokenType::IntLiteral(_))
+    }
+    pub fn is_float_literal(&self) -> bool {
+        matches!(self.token_type, TokenType::FloatLiteral(_))
+    }
+}
 impl PartialEq for Token {
     fn eq(&self, other: &Self) -> bool {
         self.token_type == other.token_type
@@ -197,7 +213,7 @@ impl fmt::Display for TokenType {
             TokenType::RightBracket => write!(f, "]"),
             TokenType::Question => write!(f, "?"),
             TokenType::Colon => write!(f, ":"),
-            TokenType::SemiColon => write!(f, ";"),
+            TokenType::Semicolon => write!(f, ";"),
             TokenType::Comma => write!(f, ","),
 
             TokenType::Mul => write!(f, "*"),
