@@ -11,7 +11,22 @@ pub enum TokenType {
     IntLiteral(i64),
     #[regex(r"[+-]?[0-9]+(?:\.[0-9]*)", |lex| lex.slice().parse::<f64>().ok())]
     FloatLiteral(f64),
-    #[regex(r#"'([^'\\]|\\[nrt0'\\"])'"#, |lex| lex.slice().parse::<char>().ok())]
+    #[regex(r#"'([^'\\]|\\[nrt0'"\\])'"#, |lex| {
+    let slice = &lex.slice()[1..lex.slice().len()-1];
+    if slice.starts_with('\\') {
+        match slice {
+            r"\n" => Some('\n'),
+            r"\r" => Some('\r'),
+            r"\t" => Some('\t'),
+            r"\0" => Some('\0'),
+            r"\'" => Some('\''),
+            r#"\""# => Some('"'),
+            r"\\" => Some('\\'),
+            _ => None,
+        }
+    } else {
+    slice.chars().next()
+    }})]
     CharLiteral(char),
     #[regex(r#""([^"\\]|\\[nrt0'\\"])*""#, |lex| Some(lex.slice().to_string()))]
     StringLiteral(String),

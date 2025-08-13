@@ -25,16 +25,6 @@ impl<'source> Lexer<'source> {
             current_location: Loc { line: 1, column: 1 },
         }
     }
-    pub fn peek(&self) -> Option<TokenType> {
-        let mut fork = self.source.clone();
-        loop {
-            match fork.next()? {
-                Ok(t) if t != TokenType::Whitespace => return Some(t),
-                Ok(_) => continue,
-                Err(_) => return None,
-            }
-        }
-    }
 }
 
 impl<'source> Iterator for Lexer<'source> {
